@@ -200,12 +200,21 @@ def run_training(
                 fake_images = generator(features)
                 d_fake_for_g = discriminator(fake_images, features)
                 g_adv = non_saturating_g_loss(d_fake_for_g)
-                # Foreground-weighted L1: the sphere occupies ~0.4% of pixels;
-                # uniform L1 lets "output all black" win the loss. Upweight
-                # pixels that carry non-background content in the GT.
-                fg_mask = (real_images > -0.95).any(dim=1, keepdim=True).float()
-                l1_weight = 1.0 + cfg.train.foreground_weight * fg_mask
-                g_l1 = ((fake_images - real_images).abs() * l1_weight).mean()
+                # Separate per-region means: sphere is ~0.4% of pixels, so a
+                # single global L1 is dominated by the background reconstruction
+                # ("output all black" solution). Computing foreground and
+                # background means independently and summing with a weight
+                # makes `foreground_weight` actually mean "sphere counts Nx
+                # relative to background".
+                fg_mask = (
+                    (real_images > -0.95).any(dim=1, keepdim=True).float().expand_as(real_images)
+                )
+                pixel_l1 = (fake_images - real_images).abs()
+                fg_pixels = fg_mask.sum().clamp_min(1.0)
+                bg_pixels = (1.0 - fg_mask).sum().clamp_min(1.0)
+                fg_l1 = (pixel_l1 * fg_mask).sum() / fg_pixels
+                bg_l1 = (pixel_l1 * (1.0 - fg_mask)).sum() / bg_pixels
+                g_l1 = bg_l1 + cfg.train.foreground_weight * fg_l1
                 g_loss = g_adv + cfg.train.l1_lambda * g_l1
 
             opt_g.zero_grad(set_to_none=True)
