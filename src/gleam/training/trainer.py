@@ -200,7 +200,12 @@ def run_training(
                 fake_images = generator(features)
                 d_fake_for_g = discriminator(fake_images, features)
                 g_adv = non_saturating_g_loss(d_fake_for_g)
-                g_l1 = F.l1_loss(fake_images, real_images)
+                # Foreground-weighted L1: the sphere occupies ~0.4% of pixels;
+                # uniform L1 lets "output all black" win the loss. Upweight
+                # pixels that carry non-background content in the GT.
+                fg_mask = (real_images > -0.95).any(dim=1, keepdim=True).float()
+                l1_weight = 1.0 + cfg.train.foreground_weight * fg_mask
+                g_l1 = ((fake_images - real_images).abs() * l1_weight).mean()
                 g_loss = g_adv + cfg.train.l1_lambda * g_l1
 
             opt_g.zero_grad(set_to_none=True)

@@ -74,9 +74,13 @@ class TrainConfig:
     lr_d: float = 2e-4
     adam_betas: tuple[float, float] = (0.5, 0.999)
     l1_lambda: float = 100.0
-    r1_gamma: float = 1.0
+    # Foreground (non-black GT pixels) gets `1 + foreground_weight` multiplier
+    # in the L1 loss. Compensates for the 99.6% / 0.4% background / sphere
+    # imbalance that otherwise lets the model win by outputting "all black".
+    foreground_weight: float = 10.0
+    r1_gamma: float = 0.1
     r1_every: int = 16
-    ema_decay: float = 0.999
+    ema_decay: float = 0.995
     val_every: int = 10
     ckpt_every: int = 25
     num_workers: int = 4
