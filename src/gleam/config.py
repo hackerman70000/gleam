@@ -78,6 +78,9 @@ class TrainConfig:
     # in the L1 loss. Compensates for the 99.6% / 0.4% background / sphere
     # imbalance that otherwise lets the model win by outputting "all black".
     foreground_weight: float = 10.0
+    # LPIPS (AlexNet) perceptual loss counteracts the L1-blur that otherwise
+    # smears specular highlights and sphere silhouettes.
+    lpips_lambda: float = 10.0
     r1_gamma: float = 0.1
     r1_every: int = 16
     ema_decay: float = 0.995

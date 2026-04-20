@@ -3,6 +3,7 @@ from dataclasses import asdict
 from pathlib import Path
 from time import time
 
+import lpips as lpips_lib
 import numpy as np
 import torch
 from loguru import logger
@@ -165,10 +166,14 @@ def run_training(
         opt_d.load_state_dict(ckpt["opt_d"])
         start_epoch = ckpt["epoch"] + 1
 
+    lpips_loss = lpips_lib.LPIPS(net="alex", verbose=False).to(device).eval()
+    for p in lpips_loss.parameters():
+        p.requires_grad_(False)
+
     global_step = 0
     for epoch in range(start_epoch, epochs):
         t0 = time()
-        running = {"d": 0.0, "g": 0.0, "l1": 0.0, "r1": 0.0}
+        running = {"d": 0.0, "g": 0.0, "l1": 0.0, "lpips": 0.0, "r1": 0.0}
         steps = 0
 
         for batch_idx, (features, real_images) in enumerate(train_loader):
@@ -215,7 +220,16 @@ def run_training(
                 fg_l1 = (pixel_l1 * fg_mask).sum() / fg_pixels
                 bg_l1 = (pixel_l1 * (1.0 - fg_mask)).sum() / bg_pixels
                 g_l1 = bg_l1 + cfg.train.foreground_weight * fg_l1
-                g_loss = g_adv + cfg.train.l1_lambda * g_l1
+
+            # LPIPS in float32: its AlexNet trunk is numerically delicate under
+            # bf16 autocast and it is cheap enough to keep full-precision.
+            g_lpips = lpips_loss(fake_images.float(), real_images.float()).mean()
+
+            g_loss = (
+                g_adv
+                + cfg.train.l1_lambda * g_l1
+                + cfg.train.lpips_lambda * g_lpips
+            )
 
             opt_g.zero_grad(set_to_none=True)
             g_loss.backward()
@@ -228,6 +242,7 @@ def run_training(
             running["d"] += float(d_loss.detach())
             running["g"] += float(g_adv.detach())
             running["l1"] += float(g_l1.detach())
+            running["lpips"] += float(g_lpips.detach())
             running["r1"] += float(r1_value.detach())
             steps += 1
             global_step += 1
@@ -237,7 +252,7 @@ def run_training(
         logger.info(
             f"epoch {epoch + 1:3d}/{epochs} "
             f"| D {avg['d']:.3f} | G_adv {avg['g']:.3f} | L1 {avg['l1']:.4f} "
-            f"| R1 {avg['r1']:.4f} | {elapsed:.1f}s"
+            f"| LPIPS {avg['lpips']:.4f} | R1 {avg['r1']:.4f} | {elapsed:.1f}s"
         )
 
         if (epoch + 1) % cfg.train.val_every == 0 or epoch == epochs - 1:
