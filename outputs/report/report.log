@@ -1,0 +1,15 @@
+2026-04-20 22:19:29.325 | INFO     | gleam.eval.report:build_report:96 - device=cuda | ckpt=outputs/checkpoints/ema_generator.pt | split=test | generator=ema
+2026-04-20 22:21:19.525 | INFO     | gleam.eval.report:build_report:143 - 
+                      mean        std    median
+metric                                         
+FLIP              0.007479   0.007282  0.005819
+LPIPS             0.048313   0.035491  0.039464
+SSIM              0.974746   0.025018  0.981907
+Hausdorff_Canny  10.770249  34.378730  3.605551
+2026-04-20 22:21:19.542 | INFO     | gleam.eval.report:build_report:159 -   best: /home/admin/other/gleam/outputs/report/visual_best.png
+2026-04-20 22:21:19.553 | INFO     | gleam.eval.report:build_report:159 -   worst: /home/admin/other/gleam/outputs/report/visual_worst.png
+2026-04-20 22:21:19.559 | INFO     | gleam.eval.report:build_report:159 -   random: /home/admin/other/gleam/outputs/report/visual_random.png
+2026-04-20 22:21:19.753 | INFO     | gleam.eval.report:build_report:168 -   scenario 'easy': /home/admin/other/gleam/outputs/report/scenario_easy.png
+2026-04-20 22:21:19.760 | INFO     | gleam.eval.report:build_report:168 -   scenario 'medium': /home/admin/other/gleam/outputs/report/scenario_medium.png
+2026-04-20 22:21:19.763 | INFO     | gleam.eval.report:build_report:168 -   scenario 'hard': /home/admin/other/gleam/outputs/report/scenario_hard.png
+2026-04-20 22:21:19.763 | INFO     | gleam.eval.report:build_report:170 - report artefacts -> /home/admin/other/gleam/outputs/report
