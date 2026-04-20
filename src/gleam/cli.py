@@ -95,6 +95,50 @@ def evaluate(
     )
 
 
+@app.command("report")
+def report(
+    ckpt: Annotated[
+        Path, typer.Option(help="Path to generator checkpoint.")
+    ] = DEFAULT_OUTPUT_DIR / "checkpoints" / "ema_generator.pt",
+    dataset: Annotated[Path, typer.Option(help="Dataset directory.")] = DEFAULT_DATASET_DIR,
+    output: Annotated[
+        Path, typer.Option(help="Report output dir.")
+    ] = DEFAULT_OUTPUT_DIR / "report",
+    split: Annotated[str, typer.Option(help="Split: train | val | test.")] = "test",
+    n_best: Annotated[int, typer.Option(help="Samples in visual_best grid.")] = 8,
+    n_worst: Annotated[int, typer.Option(help="Samples in visual_worst grid.")] = 8,
+    n_random: Annotated[int, typer.Option(help="Samples in visual_random grid.")] = 8,
+    ema: Annotated[
+        bool,
+        typer.Option(
+            "--ema/--raw",
+            help="Use the EMA generator (default) or the raw training generator.",
+        ),
+    ] = True,
+    device: Annotated[
+        str | None, typer.Option(help="Force device: cuda | mps | cpu (auto if unset).")
+    ] = None,
+    seed: Annotated[int, typer.Option(help="RNG seed for the random sample picker.")] = 0,
+) -> None:
+    """Generate every artefact needed for the project report (tables + visuals)."""
+    from gleam.eval.report import build_report
+    from gleam.utils.logging import setup_logging
+
+    setup_logging(output, run_name="report")
+    build_report(
+        ckpt=ckpt,
+        dataset_dir=dataset,
+        output_dir=output,
+        split=split,
+        n_best=n_best,
+        n_worst=n_worst,
+        n_random=n_random,
+        use_ema=ema,
+        device=device,
+        seed=seed,
+    )
+
+
 @app.command("render")
 def render_single(
     ckpt: Annotated[Path, typer.Option(help="Generator checkpoint.")],
