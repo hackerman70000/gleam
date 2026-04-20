@@ -5,10 +5,22 @@ from torch.nn import functional as F
 from gleam.models.conditioner import FiLM, SceneConditioner
 
 
+def _coord_grid(h: int, w: int, device: torch.device, dtype: torch.dtype) -> torch.Tensor:
+    """(2, H, W) tensor of normalized ``(y, x)`` coordinates in ``[-1, 1]``."""
+    ys = torch.linspace(-1.0, 1.0, h, device=device, dtype=dtype)
+    xs = torch.linspace(-1.0, 1.0, w, device=device, dtype=dtype)
+    yy, xx = torch.meshgrid(ys, xs, indexing="ij")
+    return torch.stack([yy, xx], dim=0)
+
+
 class _UpsampleBlock(nn.Module):
     def __init__(self, in_ch: int, out_ch: int, cond_dim: int) -> None:
         super().__init__()
-        self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1)
+        # +2 CoordConv channels so the block sees its absolute spatial
+        # position: conditioning is a global scalar vector and FiLM modulates
+        # channels uniformly, so without explicit coordinates the generator has
+        # to decode position purely through the MLP→4×4 feature map.
+        self.conv1 = nn.Conv2d(in_ch + 2, out_ch, kernel_size=3, padding=1)
         self.norm1 = nn.GroupNorm(num_groups=8, num_channels=out_ch)
         self.film1 = FiLM(cond_dim, out_ch)
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
@@ -17,6 +29,9 @@ class _UpsampleBlock(nn.Module):
 
     def forward(self, x: torch.Tensor, cond: torch.Tensor) -> torch.Tensor:
         x = F.interpolate(x, scale_factor=2, mode="nearest")
+        coords = _coord_grid(x.shape[2], x.shape[3], x.device, x.dtype)
+        coords = coords.unsqueeze(0).expand(x.shape[0], -1, -1, -1)
+        x = torch.cat([x, coords], dim=1)
         x = F.silu(self.film1(self.norm1(self.conv1(x)), cond))
         x = F.silu(self.film2(self.norm2(self.conv2(x)), cond))
         return x
