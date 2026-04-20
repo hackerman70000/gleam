@@ -50,7 +50,7 @@ class CondGenerator(nn.Module):
         feature_dim: int = 11,
         cond_hidden: int = 256,
         cond_dim: int = 128,
-        base_ch: int = 256,
+        base_ch: int = 384,
     ) -> None:
         super().__init__()
         self.conditioner = SceneConditioner(
