@@ -34,13 +34,16 @@ Thumbs.db
 *.swo
 *~
 
-# Generated artefacts
+# Generated artefacts — everything except the report material and training
+# logs, which we keep tracked as reference for the writeup.
 dataset/
-outputs/
 wandb/
 *.pt
 *.ckpt
 *.safetensors
+outputs/*
+!outputs/report/
+!outputs/logs/
 
 # Rendered previews (top-level PNG outputs)
 /*.png
