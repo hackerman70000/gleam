@@ -50,14 +50,28 @@ def run_evaluation(
     lpips_net: str = "alex",
     canny_sigma: float = 1.0,
     device: str | None = None,
+    use_ema: bool = True,
 ) -> None:
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
 
     device = get_device(device)
-    logger.info(f"device={device} | ckpt={ckpt} | split={split}")
+    variant = "ema" if use_ema else "raw"
+    logger.info(f"device={device} | ckpt={ckpt} | split={split} | generator={variant}")
 
-    renderer = NeuralRenderer(ckpt_path=ckpt, device=device)
+    # Full training checkpoints carry both weights; standalone EMA exports only
+    # expose ``ema_generator`` — fall back to that when raw is requested but
+    # absent so the caller always gets a usable renderer.
+    state_key = "ema_generator" if use_ema else "generator"
+    ckpt_dict = torch.load(ckpt, map_location="cpu", weights_only=False)
+    if state_key not in ckpt_dict:
+        available = [k for k in ckpt_dict if k.endswith("generator")]
+        if not available:
+            raise KeyError(f"no generator state in checkpoint; found keys: {list(ckpt_dict)}")
+        logger.warning(f"{state_key!r} missing; using {available[0]!r} instead")
+        state_key = available[0]
+
+    renderer = NeuralRenderer(ckpt_path=ckpt, device=device, state_key=state_key)
     lpips_model = lpips.LPIPS(net=lpips_net).to(device).eval()
 
     dataset_dir = Path(dataset_dir)
@@ -85,13 +99,14 @@ def run_evaluation(
         )
 
     df = pd.DataFrame(rows)
-    per_sample_path = output_dir / f"{split}_per_sample.csv"
+    suffix = "" if use_ema else "_raw"
+    per_sample_path = output_dir / f"{split}_per_sample{suffix}.csv"
     df.to_csv(per_sample_path, index=False)
 
     metric_cols = ["FLIP", "LPIPS", "SSIM", "Hausdorff_Canny"]
     agg = df[metric_cols].agg(["mean", "std", "median"]).T
     agg.index.name = "metric"
-    agg_path = output_dir / f"{split}_aggregates.csv"
+    agg_path = output_dir / f"{split}_aggregates{suffix}.csv"
     agg.to_csv(agg_path)
 
     logger.info(f"\n{agg.to_string()}")

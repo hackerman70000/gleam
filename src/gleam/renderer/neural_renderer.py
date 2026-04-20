@@ -16,7 +16,12 @@ class NeuralRenderer(Renderer):
     matching the :class:`GLSLRenderer` output.
     """
 
-    def __init__(self, ckpt_path: Path, device: str | None = None) -> None:
+    def __init__(
+        self,
+        ckpt_path: Path,
+        device: str | None = None,
+        state_key: str | None = None,
+    ) -> None:
         if device is None:
             if torch.backends.mps.is_available():
                 device = "mps"
@@ -27,7 +32,10 @@ class NeuralRenderer(Renderer):
         self.device = device
 
         ckpt = torch.load(ckpt_path, map_location="cpu", weights_only=False)
-        state = ckpt.get("ema_generator", ckpt)
+        if state_key is not None:
+            state = ckpt[state_key]
+        else:
+            state = ckpt.get("ema_generator", ckpt)
         self.generator = CondGenerator(feature_dim=FEATURE_DIM).to(device)
         self.generator.load_state_dict(state)
         self.generator.eval()

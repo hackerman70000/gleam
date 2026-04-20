@@ -72,6 +72,13 @@ def evaluate(
     device: Annotated[
         str | None, typer.Option(help="Force device: cuda | mps | cpu (auto if unset).")
     ] = None,
+    ema: Annotated[
+        bool,
+        typer.Option(
+            "--ema/--raw",
+            help="Use the EMA generator (default) or the raw training generator.",
+        ),
+    ] = True,
 ) -> None:
     """Evaluate neural renderer vs. ground truth on the chosen split."""
     from gleam.eval.runner import run_evaluation
@@ -79,7 +86,12 @@ def evaluate(
 
     setup_logging(output, run_name="eval")
     run_evaluation(
-        ckpt=ckpt, dataset_dir=dataset, output_dir=output, split=split, device=device
+        ckpt=ckpt,
+        dataset_dir=dataset,
+        output_dir=output,
+        split=split,
+        device=device,
+        use_ema=ema,
     )
 
 
